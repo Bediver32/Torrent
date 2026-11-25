@@ -27,12 +27,12 @@ type saved struct {
 
 type task struct {
 	saved
-	torrent          *torrent.Torrent
-	opened           bool
-	failure          string
-	snapshot         row
-	lastDown, lastUp int64
-	sampled          time.Time
+	torrent  *torrent.Torrent
+	opened   bool
+	failure  string
+	snapshot row
+	lastDown int64
+	sampled  time.Time
 }
 
 type row struct {
@@ -43,7 +43,6 @@ type row struct {
 	Done     int64   `json:"done"`
 	Size     int64   `json:"size"`
 	Down     float64 `json:"down"`
-	Up       float64 `json:"up"`
 	Peers    int     `json:"peers"`
 	Paused   bool    `json:"paused"`
 	Complete bool    `json:"complete"`
@@ -122,7 +121,6 @@ func (q *queue) attach(t *task) error {
 	}
 	spec.DeferStorageOpen = true
 	spec.DisallowDataDownload = t.Paused
-	spec.DisallowDataUpload = t.Paused
 	spec.Sources = nil
 	bt, added, err := q.client.AddTorrentSpec(spec)
 	if err != nil {
@@ -139,7 +137,6 @@ func (q *queue) attach(t *task) error {
 			return
 		}
 		bt.DisallowDataDownload()
-		bt.DisallowDataUpload()
 		t.failure = "Ошибка записи: " + err.Error()
 		q.refresh(t, time.Now())
 	})
@@ -196,7 +193,6 @@ func (q *queue) action(id, action string) error {
 			if t.Paused {
 				if t.torrent != nil {
 					t.torrent.DisallowDataDownload()
-					t.torrent.DisallowDataUpload()
 				}
 			} else {
 				t.failure = ""
@@ -206,7 +202,6 @@ func (q *queue) action(id, action string) error {
 					}
 				} else {
 					t.torrent.AllowDataDownload()
-					t.torrent.AllowDataUpload()
 				}
 			}
 			q.refresh(t, time.Now())
@@ -261,16 +256,15 @@ func (q *queue) refresh(t *task, now time.Time) {
 			}
 		}
 		stats := bt.Stats()
-		down, up := stats.BytesReadUsefulData.Int64(), stats.BytesWrittenData.Int64()
+		down := stats.BytesReadUsefulData.Int64()
 		seconds := now.Sub(t.sampled).Seconds()
 		if !t.sampled.IsZero() && seconds >= 0.7 {
 			r.Down = max(0, float64(down-t.lastDown)/seconds)
-			r.Up = max(0, float64(up-t.lastUp)/seconds)
 		} else if !t.sampled.IsZero() {
-			r.Down, r.Up = t.snapshot.Down, t.snapshot.Up
+			r.Down = t.snapshot.Down
 		}
 		if t.sampled.IsZero() || seconds >= 0.7 {
-			t.lastDown, t.lastUp, t.sampled = down, up, now
+			t.lastDown, t.sampled = down, now
 		}
 		r.Peers = stats.ActivePeers
 	}
@@ -292,7 +286,7 @@ func (q *queue) refresh(t *task, now time.Time) {
 		r.Status = "waiting"
 	}
 	if t.Paused || t.failure != "" {
-		r.Down, r.Up, r.Peers = 0, 0, 0
+		r.Down, r.Peers = 0, 0
 	}
 	t.snapshot = r
 }

@@ -12,7 +12,7 @@ const pending = new Set();
 const filterNames = {all: 'Все торренты', active: 'Активные', paused: 'На паузе', complete: 'Завершённые'};
 const statuses = {
   metadata: 'Получение метаданных', waiting: 'Ожидание данных', paused: 'На паузе',
-  downloading: 'Скачивается', complete: 'Раздаётся', error: 'Ошибка'
+  downloading: 'Скачивается', complete: 'Завершён', error: 'Ошибка'
 };
 const units = ['Б', 'КиБ', 'МиБ', 'ГиБ', 'ТиБ', 'ПиБ'];
 const number = new Intl.NumberFormat('ru', {maximumFractionDigits: 1});
@@ -85,8 +85,7 @@ function updateRow(node, row) {
   const progress = node.querySelector('progress');
   progress.value = percent;
   progress.setAttribute('aria-label', 'Прогресс загрузки «' + row.name + '»');
-  set('.speed-cell span', '↓ ' + rate(row.down));
-  set('.speed-cell small', '↑ ' + rate(row.up));
+  set('.speed-cell', '↓ ' + rate(row.down));
   set('.peers-cell', String(row.peers));
   const toggle = node.querySelector('[data-action="toggle"]');
   const resume = row.paused || row.status === 'error';
@@ -123,7 +122,6 @@ function render() {
   }
   byId('list-title').textContent = filterNames[filter];
   byId('down-total').textContent = rate(rows.reduce((total, row) => total + row.down, 0));
-  byId('up-total').textContent = rate(rows.reduce((total, row) => total + row.up, 0));
   byId('table-wrap').hidden = selected.length === 0;
   byId('empty').hidden = selected.length !== 0;
   byId('empty-title').textContent = !connected ? 'Связь с клиентом потеряна' : rows.length ? 'Здесь пока пусто' : 'Торрентов пока нет';

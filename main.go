@@ -89,7 +89,7 @@ func run() error {
 	cfg.DefaultStorage = files
 	cfg.ListenPort = 0
 	cfg.NoDefaultPortForwarding = true
-	cfg.Seed = true
+	cfg.NoUpload = true
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
 		return err
