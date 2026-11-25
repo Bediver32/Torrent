@@ -11,7 +11,7 @@ permissions:
 
 env:
   CGO_ENABLED: '0'
-  POTOK_VERSION: v0.1.2
+  POTOK_VERSION: v0.1.3
 
 concurrency:
   group: potok-release
