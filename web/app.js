@@ -65,7 +65,7 @@ async function request(path, options = {}) {
 function matches(row, type) {
   if (type === 'paused') return row.paused;
   if (type === 'complete') return row.complete;
-  if (type === 'active') return !row.paused && row.status !== 'error';
+  if (type === 'active') return !row.complete && !row.paused && row.status !== 'error';
   return true;
 }
 
