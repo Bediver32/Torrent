@@ -10,11 +10,11 @@
 
 ## Готовые сборки
 
-Скачайте архив для Windows или Linux (x64) и распакуйте его. В Windows запустите `Potok.exe`, в Linux — `./potok` из папки архива. [Скачать Поток 0.1.0](https://github.com/Bediver32/Torrent/releases/tag/v0.1.0)
+Скачайте архив для Windows или Linux (x64) и распакуйте его. В Windows запустите `Potok.exe`, в Linux — `./potok` из папки архива. [Скачать последнюю версию](https://github.com/Bediver32/Torrent/releases/latest)
 
 ## Сборка из исходников
 
-Для сборки нужен [Go 1.26 или новее](https://go.dev/dl/).
+Для сборки нужен [Go 1.27 или новее](https://go.dev/dl/).
 
 ```sh
 go build -trimpath -o potok .
@@ -34,4 +34,4 @@ go build -trimpath -o potok.exe .
 
 ## Использованные библиотеки
 
-Движок [anacrolix/torrent v1.63.0](https://github.com/anacrolix/torrent/tree/v1.63.0) распространяется по лицензии MPL 2.0. Для блокировки файла очереди используется [gofrs/flock](https://github.com/gofrs/flock).
+Движок [anacrolix/torrent](https://github.com/anacrolix/torrent/tree/c021e79b4ccf3a8edbe18d7131678396be14529e) распространяется по лицензии MPL 2.0. Для блокировки файла очереди используется [gofrs/flock](https://github.com/gofrs/flock).
