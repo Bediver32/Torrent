@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Поток — торрент-клиент</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i></span><div><strong>Поток</strong><small>Торрент-клиент</small></div></div>
+      <nav aria-label="Состояние торрентов" id="filters">
+        <button type="button" data-filter="all" aria-pressed="true"><span class="nav-icon" aria-hidden="true">▤</span>Все торренты <span class="count" id="count-all">0</span></button>
+        <button type="button" data-filter="active" aria-pressed="false"><span class="nav-icon" aria-hidden="true">↓</span>Активные <span class="count" id="count-active">0</span></button>
+        <button type="button" data-filter="paused" aria-pressed="false"><span class="nav-icon" aria-hidden="true">II</span>На паузе <span class="count" id="count-paused">0</span></button>
+        <button type="button" data-filter="complete" aria-pressed="false"><span class="nav-icon" aria-hidden="true">✓</span>Завершённые <span class="count" id="count-complete">0</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button type="button" id="quit"><span aria-hidden="true">⏻</span> Завершить работу</button>
+        <div class="connection"><span class="dot"></span><span id="connection">Подключение к клиенту</span></div>
+      </div>
+    </aside>
+    <main>
+      <header class="page-header">
+        <div><h1>Мои загрузки</h1><p>Добавляйте торренты и следите за загрузкой файлов.</p></div>
+        <button class="outline" type="button" id="open-folder">Папка загрузок <span class="external-icon" aria-hidden="true"></span></button>
+      </header>
+      <section class="add-panel" aria-label="Добавить торрент">
+        <form id="magnet-form">
+          <label for="magnet">Magnet-ссылка</label>
+          <div class="input-group">
+            <input id="magnet" type="text" placeholder="magnet:?xt=urn:btih:…" required spellcheck="false" autocomplete="off" maxlength="64000">
+            <button class="primary" type="submit">Добавить</button>
+          </div>
+        </form>
+        <span class="divider" aria-hidden="true"></span>
+        <div class="file-upload">
+          <input type="file" id="torrent-file" accept=".torrent,application/x-bittorrent" multiple hidden>
+          <button type="button" id="pick-file" class="outline"><span aria-hidden="true">＋</span> Открыть .torrent</button>
+          <small>Или перетащите файл в окно</small>
+        </div>
+      </section>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <div id="save-error" class="notice error" role="status" hidden></div>
+      <section class="list-panel" aria-labelledby="list-title">
+        <div class="list-heading">
+          <h2 id="list-title">Все торренты</h2>
+          <div class="rates" aria-label="Общая скорость">
+            <span><b aria-hidden="true">↓</b><span id="down-total">0 Б/с</span></span>
+            <span><b aria-hidden="true">↑</b><span id="up-total">0 Б/с</span></span>
+          </div>
+        </div>
+        <div id="empty" class="empty">
+          <div class="empty-icon" aria-hidden="true">↓</div>
+          <h3 id="empty-title">Загрузка очереди…</h3>
+          <p id="empty-help"></p>
+        </div>
+        <div id="table-wrap" class="table-wrap" hidden>
+          <table>
+            <thead><tr><th scope="col">Название</th><th scope="col">Прогресс</th><th scope="col">Скорость</th><th scope="col">Пиры</th><th scope="col">Действия</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <footer class="folder-info"><span>Сохраняется в</span> <b id="directory">—</b></footer>
+    </main>
+  </div>
+  <dialog id="confirm">
+    <form method="dialog">
+      <h2 id="confirm-title"></h2><p id="confirm-body"></p>
+      <div class="dialog-actions">
+        <button value="cancel" type="submit" class="outline" autofocus>Отмена</button>
+        <button value="confirm" type="submit" class="primary" id="confirm-button"></button>
+      </div>
+    </form>
+  </dialog>
+  <template id="row">
+    <tr>
+      <td class="name-cell"><strong></strong><span class="status"></span><span class="row-error" hidden></span></td>
+      <td><div class="progress-label"><b></b><small></small></div><progress max="100"></progress></td>
+      <td class="speed-cell"><span></span><small></small></td>
+      <td class="peers-cell"></td>
+      <td><div class="row-actions">
+        <button type="button" data-action="toggle" class="outline"></button>
+        <button type="button" data-action="folder" class="outline icon-button" title="Открыть папку" aria-label="Открыть папку"><span class="external-icon" aria-hidden="true"></span></button>
+        <button type="button" data-action="remove" class="outline icon-button remove" title="Убрать из очереди" aria-label="Убрать из очереди">×</button>
+      </div></td>
+    </tr>
+  </template>
+</body>
+</html>
