@@ -136,13 +136,28 @@ func (q *queue) selectFiles(id string, skipped []int) error {
 		return err
 	}
 	old := t.Skipped
+	if slices.Equal(old, skipped) {
+		return nil
+	}
 	t.Skipped = skipped
 	if err := q.save(); err != nil {
 		t.Skipped = old
 		return err
 	}
 	if t.opened {
+		// A web seed may have an open HTTP request that spans several files.
+		// Cancel outstanding requests when a new file is excluded.
+		restart := !t.Paused && t.failure == "" && slices.ContainsFunc(skipped, func(i int) bool {
+			_, alreadySkipped := slices.BinarySearch(old, i)
+			return !alreadySkipped
+		})
+		if restart {
+			t.torrent.DisallowDataDownload()
+		}
 		t.applySelection()
+		if restart {
+			t.torrent.AllowDataDownload()
+		}
 	}
 	q.refresh(t, time.Now())
 	return nil
