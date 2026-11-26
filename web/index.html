@@ -59,7 +59,7 @@
         </div>
         <div id="table-wrap" class="table-wrap" hidden>
           <table>
-            <thead><tr><th scope="col">Название</th><th scope="col">Прогресс</th><th scope="col">Скачивание</th><th scope="col">Пиры</th><th scope="col">Действия</th></tr></thead>
+            <thead><tr><th scope="col">Название</th><th scope="col">Прогресс</th><th scope="col">Скачивание</th><th scope="col" title="Подключённые сиды и остальные пиры">Сиды / Пиры</th><th scope="col">Действия</th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
         </div>
@@ -102,11 +102,30 @@
       <td class="peers-cell"></td>
       <td><div class="row-actions">
         <button type="button" data-action="toggle" class="outline"></button>
-        <button type="button" data-action="files" class="outline">Файлы</button>
+        <button type="button" data-action="files" aria-expanded="false" class="outline">Файлы <span class="expand-arrow" aria-hidden="true"></span></button>
         <button type="button" data-action="folder" class="outline icon-button" title="Открыть папку" aria-label="Открыть папку"><span class="external-icon" aria-hidden="true"></span></button>
         <button type="button" data-action="remove" class="outline icon-button remove" title="Убрать из очереди" aria-label="Убрать из очереди">×</button>
       </div></td>
     </tr>
+    <tr class="details-row" hidden>
+      <td colspan="5">
+        <div class="details-toolbar">
+          <strong>Файлы торрента</strong>
+          <button type="button" data-action="selection" class="outline">Изменить выбор</button>
+        </div>
+        <p class="details-message" role="status" hidden></p>
+        <div class="details-columns" aria-hidden="true"><span>Имя файла</span><span>Скачано</span><span>На диске</span></div>
+        <ul class="details-files" aria-label="Прогресс по файлам"></ul>
+      </td>
+    </tr>
+  </template>
+  <template id="file-progress">
+    <li>
+      <div class="file-name"><span></span><small hidden>Пропущен</small></div>
+      <progress max="100"></progress>
+      <b class="file-percent"></b>
+      <small class="file-bytes" title="Проверенные данные на диске"></small>
+    </li>
   </template>
 </body>
 </html>

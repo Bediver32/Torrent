@@ -13,10 +13,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -34,6 +32,7 @@ const maxMetainfo = 16 << 20
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "Поток:", err)
+		showDesktopError(err)
 		os.Exit(1)
 	}
 }
@@ -130,11 +129,14 @@ func run() error {
 	}()
 	address := "http://" + listener.Addr().String()
 	fmt.Printf("Поток — %s\nПапка загрузок — %s\n", address, dir)
-	if !*noBrowser {
-		if err := open(address, true); err != nil {
-			fmt.Fprintln(os.Stderr, "Откройте адрес в браузере:", address)
-		}
+	closeDesktop, err := startDesktop(address, *noBrowser, stop)
+	if err != nil {
+		cancel()
+		<-stopped
+		server.Close()
+		return err
 	}
+	defer closeDesktop()
 
 	select {
 	case <-ctx.Done():
@@ -157,25 +159,11 @@ func run() error {
 	return nil
 }
 
-func open(target string, browser bool) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		if browser {
-			cmd = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", target)
-		} else {
-			cmd = exec.Command("explorer.exe", target)
-		}
-	case "darwin":
-		cmd = exec.Command("open", target)
+func requestStop(stop chan<- struct{}) {
+	select {
+	case stop <- struct{}{}:
 	default:
-		cmd = exec.Command("xdg-open", target)
 	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go cmd.Wait()
-	return nil
 }
 
 func routes(host string, q *queue, stop chan<- struct{}) http.Handler {
@@ -247,10 +235,7 @@ func routes(host string, q *queue, stop chan<- struct{}) http.Handler {
 	})
 	mux.HandleFunc("POST /api/quit", func(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, struct{}{})
-		select {
-		case stop <- struct{}{}:
-		default:
-		}
+		requestStop(stop)
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Host != host {

@@ -77,10 +77,10 @@ th, td { padding: 13px 12px; }
 th:first-child, td:first-child { padding-left: 20px; }
 th:last-child, td:last-child { padding-right: 20px; }
 th { background: #151f2b; color: var(--muted); font-size: 11px; font-weight: 650; }
-th:nth-child(1) { width: 34%; }
+th:nth-child(1) { width: 32%; }
 th:nth-child(2) { width: 21%; }
 th:nth-child(3) { width: 15%; }
-th:nth-child(4) { width: 8%; }
+th:nth-child(4) { width: 10%; }
 th:nth-child(5) { width: 22%; }
 tr + tr td, thead + tbody tr:first-child td { border-top: 1px solid var(--line); }
 td { font-variant-numeric: tabular-nums; }
@@ -140,3 +140,22 @@ dialog p { margin: 8px 0 17px; overflow-wrap: anywhere; }
 #file-list input { accent-color: var(--teal); }
 #file-list span { overflow-wrap: anywhere; }
 #file-list small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+.peers-cell { white-space: nowrap; }
+.expand-arrow { width: 6px; height: 6px; border: solid currentColor; border-width: 0 1px 1px 0; transform: rotate(45deg) translateY(-1px); }
+[aria-expanded="true"] .expand-arrow { transform: rotate(225deg) translateY(-1px); }
+.details-row > td { background: #141e29; padding: 11px 20px 16px; }
+.details-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.details-toolbar strong { font-size: 12px; }
+.details-toolbar button { min-height: 29px; font-size: 11px; }
+.details-message { margin: 8px 0; color: var(--muted); font-size: 12px; }
+.details-files { list-style: none; margin: 0; padding: 0; max-height: 284px; overflow-y: auto; }
+.details-columns, .details-files li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(70px, 24%) 47px minmax(108px, 17%); align-items: center; gap: 10px; padding: 8px 5px; border-top: 1px solid var(--line); font-size: 12px; }
+.details-columns { border-top: 0; font-size: 11px; color: var(--muted); padding-block: 3px 6px; }
+.details-columns span:nth-child(2) { grid-column: 2 / 4; }
+.details-columns span:last-child { text-align: right; }
+.file-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; overflow-wrap: anywhere; min-width: 0; }
+.file-name span { min-width: 0; }
+.file-skipped .file-name, .file-bytes { color: var(--muted); }
+.file-skipped progress { opacity: .65; }
+.file-percent, .file-bytes { text-align: right; }

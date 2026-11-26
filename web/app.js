@@ -88,37 +88,51 @@ function updateRow(node, row) {
   progress.value = percent;
   progress.setAttribute('aria-label', 'Прогресс загрузки «' + row.name + '»');
   set('.speed-cell', '↓ ' + rate(row.down));
-  set('.peers-cell', String(row.peers));
+  set('.peers-cell', row.seeds + ' / ' + row.peers);
+  node.querySelector('.peers-cell').title = 'Сиды: ' + row.seeds + ' · Остальные пиры: ' + row.peers;
   const toggle = node.querySelector('[data-action="toggle"]');
   const resume = row.paused || row.status === 'error';
   toggle.dataset.value = resume ? 'resume' : 'pause';
   set('[data-action="toggle"]', resume ? 'Продолжить' : 'Пауза');
   const busy = pending.has(row.id) || !connected;
   toggle.disabled = busy;
-  node.querySelector('[data-action="files"]').disabled = busy || !row.files;
+  const fileButton = node.querySelector('[data-action="files"]');
+  fileButton.disabled = !row.files;
+  fileButton.setAttribute('aria-expanded', String(!node.nextElementSibling.hidden));
+  node.nextElementSibling.querySelector('[data-action="selection"]').disabled = busy || !row.files;
   node.querySelector('[data-action="folder"]').disabled = busy || !row.folder;
   node.querySelector('[data-action="remove"]').disabled = busy;
 }
 
 function render() {
   const selected = rows.filter((row) => matches(row, filter));
-  for (const [id, node] of nodes) {
-    if (!selected.some((row) => row.id === id)) {
-      node.remove();
+  const visible = new Set(selected.map((row) => row.id));
+  for (const [id, entry] of nodes) {
+    if (!visible.has(id)) {
+      entry.row.remove();
+      entry.details.remove();
       nodes.delete(id);
     }
   }
   let cursor = table.firstElementChild;
   for (const row of selected) {
-    let node = nodes.get(row.id);
-    if (!node) {
-      node = byId('row').content.firstElementChild.cloneNode(true);
+    let entry = nodes.get(row.id);
+    if (!entry) {
+      const template = byId('row').content.cloneNode(true);
+      const [node, details] = template.children;
       node.dataset.id = row.id;
-      nodes.set(row.id, node);
+      details.dataset.id = row.id;
+      details.id = 'files-' + row.id;
+      node.querySelector('[data-action="files"]').setAttribute('aria-controls', details.id);
+      entry = {row: node, details, files: new Map()};
+      nodes.set(row.id, entry);
     }
-    updateRow(node, row);
-    if (cursor !== node) table.insertBefore(node, cursor);
-    cursor = node.nextElementSibling;
+    if (cursor !== entry.row) table.insertBefore(entry.row, cursor);
+    if (entry.row.nextElementSibling !== entry.details) {
+      table.insertBefore(entry.details, entry.row.nextElementSibling);
+    }
+    updateRow(entry.row, row);
+    cursor = entry.details.nextElementSibling;
   }
   for (const type of Object.keys(filterNames)) {
     byId('count-' + type).textContent = rows.filter((row) => matches(row, type)).length;
@@ -128,9 +142,50 @@ function render() {
   byId('table-wrap').hidden = selected.length === 0;
   byId('empty').hidden = selected.length !== 0;
   byId('empty-title').textContent = !connected ? 'Связь с клиентом потеряна' : rows.length ? 'Здесь пока пусто' : 'Торрентов пока нет';
-  byId('empty-help').textContent = !connected ? 'Запустите Поток и откройте адрес из окна программы.'
+  byId('empty-help').textContent = !connected ? 'Запустите Поток и снова откройте интерфейс.'
     : rows.length ? 'Выберите другой фильтр, чтобы увидеть остальные торренты.'
     : 'Вставьте magnet-ссылку или откройте файл .torrent.';
+}
+
+async function refreshDetails(id, entry) {
+  if (entry.loading || entry.details.hidden || !connected) return;
+  entry.loading = true;
+  const status = entry.details.querySelector('.details-message');
+  const list = entry.details.querySelector('.details-files');
+  if (!entry.files.size) {
+    status.textContent = 'Получение списка файлов…';
+    status.hidden = false;
+  }
+  try {
+    const data = await request('torrents/' + id + '/files');
+    for (const file of data.files) {
+      let item = entry.files.get(file.index);
+      if (!item) {
+        const element = byId('file-progress').content.firstElementChild.cloneNode(true);
+        element.querySelector('.file-name span').textContent = file.path;
+        element.querySelector('progress').setAttribute('aria-label', 'Записано · ' + file.path);
+        list.append(element);
+        item = {element};
+        entry.files.set(file.index, item);
+      }
+      if (item.done === file.done && item.skip === file.skip) continue;
+      item.done = file.done;
+      item.skip = file.skip;
+      const percent = file.size > 0 ? Math.min(100, file.done / file.size * 100) : 100;
+      item.element.classList.toggle('file-skipped', file.skip);
+      item.element.querySelector('.file-name small').hidden = !file.skip;
+      item.element.querySelector('progress').value = percent;
+      item.element.querySelector('.file-percent').textContent = number.format(percent === 100 ? 100 : Math.min(99.9, percent)) + '%';
+      item.element.querySelector('.file-bytes').textContent = bytes(file.done) + ' / ' + bytes(file.size);
+    }
+    status.hidden = data.files.length > 0;
+    if (!status.hidden) status.textContent = 'В торренте нет файлов.';
+  } catch (error) {
+    status.textContent = error.message;
+    status.hidden = false;
+  } finally {
+    entry.loading = false;
+  }
 }
 
 async function poll() {
@@ -149,7 +204,10 @@ async function poll() {
     connection(false, 'Нет связи с клиентом');
   } finally {
     polling = false;
-    if (!quitting) render();
+    if (!quitting) {
+      render();
+      for (const [id, entry] of nodes) refreshDetails(id, entry);
+    }
   }
 }
 
@@ -350,13 +408,20 @@ table.addEventListener('click', async (event) => {
   const row = rows.find((entry) => entry.id === id);
   if (!row || pending.has(id)) return;
   const action = button.dataset.value || button.dataset.action;
-  if (action === 'files' && choosingFiles) return;
+  if (action === 'files') {
+    const entry = nodes.get(id);
+    entry.details.hidden = !entry.details.hidden;
+    button.setAttribute('aria-expanded', String(!entry.details.hidden));
+    refreshDetails(id, entry);
+    return;
+  }
+  if (action === 'selection' && choosingFiles) return;
   if (action === 'remove' && !await confirmAction('Убрать из очереди?', row.name + ' — скачанные файлы останутся на диске.', 'Убрать')) return;
   pending.add(id);
   render();
   try {
-    const path = 'torrents/' + id + '/' + action;
-    if (action === 'files') {
+    const path = 'torrents/' + id + '/' + (action === 'selection' ? 'files' : action);
+    if (action === 'selection') {
       choosingFiles = true;
       try {
         const list = await request(path);

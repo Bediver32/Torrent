@@ -111,13 +111,16 @@ func (q *queue) files(id string) (fileList, error) {
 		return fileList{}, err
 	}
 	list := fileList{Name: t.torrent.Name(), Files: []fileEntry{}}
+	complete := t.opened && t.torrent.Complete().Bool()
 	for i, f := range t.torrent.Files() {
 		if strings.ContainsRune(f.FileInfo().Attr, 'p') {
 			continue
 		}
 		_, skip := slices.BinarySearch(t.Skipped, i)
 		entry := fileEntry{Index: i, Path: f.DisplayPath(), Size: f.Length(), Skip: skip}
-		if t.opened {
+		if complete {
+			entry.Done = entry.Size
+		} else if t.opened {
 			entry.Done = verifiedBytes(f)
 		}
 		list.Files = append(list.Files, entry)

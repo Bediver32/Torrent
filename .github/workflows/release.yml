@@ -11,7 +11,7 @@ permissions:
 
 env:
   CGO_ENABLED: '0'
-  POTOK_VERSION: v0.1.5
+  POTOK_VERSION: v0.1.6
 
 concurrency:
   group: potok-release
@@ -27,6 +27,8 @@ jobs:
           go-version: '1.27.4'
       - name: Verify concurrent access to partial files
         run: go test github.com/anacrolix/torrent/storage -run '^(TestClassicFileIoFailedRenameKeepsCachedWriter|TestClassicWritesDuringMarkNotComplete)$' -v
+      - name: Verify tray initialization and click handling
+        run: go test . -run '^TestTrayClick$' -v
 
   release:
     needs: windows-storage
@@ -52,8 +54,12 @@ jobs:
             mkdir "dist/$bundle"
             destination="$PWD/dist/$bundle"
             executable=potok
-            if [[ "$target" == windows ]]; then executable=Potok.exe; fi
-            go build -trimpath -o "$destination/$executable" .
+            build_flags=(-trimpath)
+            if [[ "$target" == windows ]]; then
+              executable=Potok.exe
+              build_flags+=(-ldflags=-H=windowsgui)
+            fi
+            go build "${build_flags[@]}" -o "$destination/$executable" .
             cp README.md "$destination/"
             license_dir="$destination/third-party"
             mkdir -p "$license_dir/go"
@@ -77,4 +83,4 @@ jobs:
           fi
           gh release create "$POTOK_VERSION" dist/*.zip --target "$GITHUB_SHA" \
             --title "Поток ${POTOK_VERSION#v}" \
-            --notes "Выбирайте файлы перед загрузкой .torrent и меняйте выбор кнопкой «Файлы» в очереди. Отметки и скачанные части сохраняются после перезапуска."
+            --notes "Список файлов с прогрессом раскрывается в очереди. В Windows Поток запускается в области уведомлений. Нажмите на значок Потока, чтобы открыть интерфейс."

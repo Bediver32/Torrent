@@ -47,6 +47,7 @@ type row struct {
 	Size     int64   `json:"size"`
 	Down     float64 `json:"down"`
 	Peers    int     `json:"peers"`
+	Seeds    int     `json:"seeds"`
 	Paused   bool    `json:"paused"`
 	Complete bool    `json:"complete"`
 	Folder   bool    `json:"folder"`
@@ -282,7 +283,8 @@ func (q *queue) refresh(t *task, now time.Time) {
 		if t.sampled.IsZero() || seconds >= 0.7 {
 			t.lastDown, t.sampled = down, now
 		}
-		r.Peers = stats.ActivePeers
+		r.Seeds = stats.ConnectedSeeders
+		r.Peers = max(0, stats.ActivePeers-r.Seeds)
 	}
 	if r.Name == "" {
 		r.Name = "Торрент"
@@ -305,7 +307,7 @@ func (q *queue) refresh(t *task, now time.Time) {
 		r.Status = "waiting"
 	}
 	if t.Paused || t.failure != "" {
-		r.Down, r.Peers = 0, 0
+		r.Down = 0
 	}
 	t.snapshot = r
 }
