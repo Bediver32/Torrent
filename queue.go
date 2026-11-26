@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,16 +24,18 @@ type saved struct {
 	Magnet   string `json:"magnet,omitempty"`
 	Metadata []byte `json:"metadata,omitempty"`
 	Paused   bool   `json:"paused,omitempty"`
+	Skipped  []int  `json:"skipped,omitempty"`
 }
 
 type task struct {
 	saved
-	torrent  *torrent.Torrent
-	opened   bool
-	failure  string
-	snapshot row
-	lastDown int64
-	sampled  time.Time
+	torrent    *torrent.Torrent
+	opened     bool
+	hasPadding bool
+	failure    string
+	snapshot   row
+	lastDown   int64
+	sampled    time.Time
 }
 
 type row struct {
@@ -47,6 +50,7 @@ type row struct {
 	Paused   bool    `json:"paused"`
 	Complete bool    `json:"complete"`
 	Folder   bool    `json:"folder"`
+	Files    bool    `json:"files"`
 }
 
 type queue struct {
@@ -88,12 +92,21 @@ func (q *queue) attach(t *task) error {
 	var err error
 	if len(t.Metadata) != 0 {
 		var mi *metainfo.MetaInfo
-		mi, err = metainfo.Load(bytes.NewReader(t.Metadata))
+		mi, err = readMetainfo(t.Metadata)
 		if err == nil {
 			spec, err = torrent.TorrentSpecFromMetaInfoErr(mi)
+			if err == nil && len(t.Skipped) != 0 {
+				info, parseErr := mi.UnmarshalInfo()
+				if parseErr != nil {
+					return parseErr
+				}
+				if err := validateSkipped(t.Skipped, len(info.UpvertedFiles())); err != nil {
+					return err
+				}
+			}
 		}
 		if err != nil {
-			return fmt.Errorf("не удалось прочитать .torrent: %w", err)
+			return err
 		}
 	}
 	if t.Magnet != "" {
@@ -224,6 +237,7 @@ func (q *queue) action(id, action string) error {
 
 func (q *queue) refresh(t *task, now time.Time) {
 	r := row{ID: t.ID, Paused: t.Paused}
+	var selected bool
 	bt := t.torrent
 	if bt != nil {
 		if name := bt.Name(); name != "" {
@@ -231,8 +245,8 @@ func (q *queue) refresh(t *task, now time.Time) {
 		} else {
 			r.Name = bt.InfoHash().HexString()
 		}
-		if bt.Info() != nil {
-			r.Size = bt.Length()
+		if t.filesReady() {
+			r.Files = true
 			if t.Magnet != "" && len(t.Metadata) == 0 {
 				mi := bt.Metainfo()
 				var data bytes.Buffer
@@ -246,12 +260,14 @@ func (q *queue) refresh(t *task, now time.Time) {
 					t.failure = "Не удалось открыть файлы: " + err.Error()
 				} else {
 					t.opened = true
-					bt.DownloadAll()
+					for _, file := range bt.Files() {
+						t.hasPadding = t.hasPadding || strings.ContainsRune(file.FileInfo().Attr, 'p')
+					}
+					t.applySelection()
 				}
 			}
 			if t.opened {
-				r.Done = bt.BytesCompleted()
-				r.Complete = bt.Complete().Bool()
+				selected = t.progress(&r)
 				r.Folder = true
 			}
 		}
@@ -280,6 +296,9 @@ func (q *queue) refresh(t *task, now time.Time) {
 		r.Status = "complete"
 	case !t.opened:
 		r.Status = "metadata"
+	case !selected:
+		r.Status = "unselected"
+		r.Down = 0
 	case r.Down > 0:
 		r.Status = "downloading"
 	default:

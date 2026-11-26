@@ -76,6 +76,24 @@
       </div>
     </form>
   </dialog>
+  <dialog id="file-dialog" aria-labelledby="file-title">
+    <form id="file-form">
+      <h2 id="file-title">Файлы торрента</h2>
+      <p id="file-torrent"></p>
+      <div class="file-toolbar">
+        <button id="file-all" type="button" class="outline">Выбрать все</button>
+        <button id="file-none" type="button" class="outline">Снять выбор</button>
+        <span id="file-count" aria-live="polite"></span>
+      </div>
+      <fieldset id="file-list" aria-label="Файлы для загрузки"></fieldset>
+      <p id="file-help">Если два файла делят один блок торрента, часть соседнего файла может сохраниться на диске.</p>
+      <p id="file-error" class="notice error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="file-cancel" type="button" class="outline">Отмена</button>
+        <button id="file-save" type="submit" class="primary"></button>
+      </div>
+    </form>
+  </dialog>
   <template id="row">
     <tr>
       <td class="name-cell"><strong></strong><span class="status"></span><span class="row-error" hidden></span></td>
@@ -84,6 +102,7 @@
       <td class="peers-cell"></td>
       <td><div class="row-actions">
         <button type="button" data-action="toggle" class="outline"></button>
+        <button type="button" data-action="files" class="outline">Файлы</button>
         <button type="button" data-action="folder" class="outline icon-button" title="Открыть папку" aria-label="Открыть папку"><span class="external-icon" aria-hidden="true"></span></button>
         <button type="button" data-action="remove" class="outline icon-button remove" title="Убрать из очереди" aria-label="Убрать из очереди">×</button>
       </div></td>

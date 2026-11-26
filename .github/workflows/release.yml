@@ -11,7 +11,7 @@ permissions:
 
 env:
   CGO_ENABLED: '0'
-  POTOK_VERSION: v0.1.3
+  POTOK_VERSION: v0.1.4
 
 concurrency:
   group: potok-release
@@ -77,4 +77,4 @@ jobs:
           fi
           gh release create "$POTOK_VERSION" dist/*.zip --target "$GITHUB_SHA" \
             --title "Поток ${POTOK_VERSION#v}" \
-            --notes "Раздача частей файла отключена во время и после скачивания. Для обновления закройте запущенный клиент и запустите новый исполняемый файл с той же папкой загрузок и настроек."
+            --notes "Выбирайте файлы перед загрузкой .torrent и меняйте выбор кнопкой «Файлы» в очереди. Отметки и скачанные части сохраняются после перезапуска."

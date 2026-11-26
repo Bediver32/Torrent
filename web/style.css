@@ -129,3 +129,14 @@ dialog p { margin: 8px 0 17px; overflow-wrap: anywhere; }
   .list-heading { padding: 12px 13px; }
   .empty { min-height: 220px; }
 }
+
+#file-dialog { width: min(94vw, 680px); max-height: min(90vh, 800px); }
+#file-dialog p { margin-bottom: 12px; }
+.file-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+#file-count { margin-left: auto; color: var(--muted); font-size: 12px; }
+#file-list { display: grid; min-width: 0; max-height: 48vh; overflow-y: auto; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; }
+#file-list label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; margin: 0; padding: 9px; }
+#file-list label + label { border-top: 1px solid var(--line); }
+#file-list input { accent-color: var(--teal); }
+#file-list span { overflow-wrap: anywhere; }
+#file-list small { color: var(--muted); font-size: 11px; white-space: nowrap; }

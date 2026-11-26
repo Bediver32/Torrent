@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -184,24 +185,23 @@ func routes(host string, q *queue, stop chan<- struct{}) http.Handler {
 	mux.HandleFunc("GET /api/queue", func(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, q.view())
 	})
-	mux.HandleFunc("POST /api/torrents", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/torrents/preview", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMetainfo))
 		if err != nil {
-			sendError(w, 400, "Файл должен быть меньше 16 МБ.")
+			sendError(w, 400, "Файл должен быть не больше 16 МБ.")
 			return
 		}
-		var item saved
-		switch r.Header.Get("Content-Type") {
-		case "application/x-bittorrent":
-			item.Metadata = body
-		case "text/plain":
-			item.Magnet = strings.TrimSpace(string(body))
-			if !strings.HasPrefix(strings.ToLower(item.Magnet), "magnet:?") || len(item.Magnet) > 64000 {
-				sendError(w, 400, "Вставьте корректную magnet-ссылку.")
-				return
-			}
-		default:
-			sendError(w, 415, "Загрузите .torrent или вставьте magnet-ссылку.")
+		files, err := inspectMetainfo(body)
+		if err != nil {
+			sendError(w, 400, err.Error())
+			return
+		}
+		send(w, 200, files)
+	})
+	mux.HandleFunc("POST /api/torrents", func(w http.ResponseWriter, r *http.Request) {
+		item, err := readNewTorrent(w, r)
+		if err != nil {
+			sendError(w, 400, err.Error())
 			return
 		}
 		if err := q.add(item); err != nil {
@@ -209,6 +209,27 @@ func routes(host string, q *queue, stop chan<- struct{}) http.Handler {
 			return
 		}
 		send(w, 201, struct{}{})
+	})
+	mux.HandleFunc("GET /api/torrents/{id}/files", func(w http.ResponseWriter, r *http.Request) {
+		files, err := q.files(r.PathValue("id"))
+		if err != nil {
+			sendError(w, 400, err.Error())
+			return
+		}
+		send(w, 200, files)
+	})
+	mux.HandleFunc("PUT /api/torrents/{id}/files", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMetainfo))
+		var skipped []int
+		if err != nil || json.Unmarshal(body, &skipped) != nil || skipped == nil {
+			sendError(w, 400, "Некорректный список файлов.")
+			return
+		}
+		if err := q.selectFiles(r.PathValue("id"), skipped); err != nil {
+			sendError(w, 400, err.Error())
+			return
+		}
+		send(w, 200, struct{}{})
 	})
 	mux.HandleFunc("POST /api/torrents/{id}/{action}", func(w http.ResponseWriter, r *http.Request) {
 		if err := q.action(r.PathValue("id"), r.PathValue("action")); err != nil {
@@ -248,6 +269,53 @@ func routes(host string, q *queue, stop chan<- struct{}) http.Handler {
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+func readNewTorrent(w http.ResponseWriter, r *http.Request) (saved, error) {
+	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return saved{}, errors.New("загрузите .torrent или вставьте magnet-ссылку")
+	}
+	if contentType == "multipart/form-data" {
+		r.Body = http.MaxBytesReader(w, r.Body, 2*maxMetainfo+4096)
+		if err := r.ParseMultipartForm(2 * maxMetainfo); err != nil {
+			return saved{}, errors.New("не удалось прочитать файл и список")
+		}
+		defer r.MultipartForm.RemoveAll()
+		file, _, err := r.FormFile("torrent")
+		if err != nil {
+			return saved{}, errors.New("выберите файл .torrent")
+		}
+		defer file.Close()
+		body, err := io.ReadAll(io.LimitReader(file, maxMetainfo+1))
+		if err != nil || len(body) > maxMetainfo {
+			return saved{}, errors.New("файл должен быть не больше 16 МБ")
+		}
+		var skipped []int
+		if json.Unmarshal([]byte(r.FormValue("skipped")), &skipped) != nil || skipped == nil {
+			return saved{}, errors.New("некорректный список файлов")
+		}
+		return saved{Metadata: body, Skipped: skipped}, nil
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMetainfo))
+	if err != nil {
+		return saved{}, errors.New("файл должен быть не больше 16 МБ")
+	}
+	switch contentType {
+	case "application/x-bittorrent":
+		if len(body) == 0 {
+			return saved{}, errors.New("выберите файл .torrent")
+		}
+		return saved{Metadata: body}, nil
+	case "text/plain":
+		magnet := strings.TrimSpace(string(body))
+		if !strings.HasPrefix(strings.ToLower(magnet), "magnet:?") || len(magnet) > 64000 {
+			return saved{}, errors.New("Вставьте корректную magnet-ссылку.")
+		}
+		return saved{Magnet: magnet}, nil
+	default:
+		return saved{}, errors.New("загрузите .torrent или вставьте magnet-ссылку")
+	}
 }
 
 func send(w http.ResponseWriter, status int, value any) {
