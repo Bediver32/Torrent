@@ -78,6 +78,8 @@ func (q *queue) load() error {
 		return err
 	}
 	for _, item := range items {
+		// Restored tasks wait for an explicit resume on every launch.
+		item.Paused = true
 		t := &task{saved: item}
 		if err := q.attach(t); err != nil {
 			t.failure = err.Error()
@@ -134,7 +136,6 @@ func (q *queue) attach(t *task) error {
 		}
 	}
 	spec.DeferStorageOpen = true
-	spec.DisallowDataDownload = t.Paused
 	spec.Sources = nil
 	bt, added, err := q.client.AddTorrentSpec(spec)
 	if err != nil {
@@ -142,6 +143,11 @@ func (q *queue) attach(t *task) error {
 	}
 	if !added {
 		return errors.New("этот торрент уже есть в очереди")
+	}
+	if t.Paused {
+		// The engine does not apply DisallowDataDownload from TorrentSpec.
+		// Pause explicitly while storage is still closed and pieces cannot be requested.
+		bt.DisallowDataDownload()
 	}
 	t.torrent = bt
 	bt.SetOnWriteChunkError(func(err error) {
@@ -292,10 +298,10 @@ func (q *queue) refresh(t *task, now time.Time) {
 	switch {
 	case t.failure != "":
 		r.Status, r.Error = "error", t.failure
-	case t.Paused:
-		r.Status = "paused"
 	case r.Complete:
 		r.Status = "complete"
+	case t.Paused:
+		r.Status = "paused"
 	case !t.opened:
 		r.Status = "metadata"
 	case !selected:

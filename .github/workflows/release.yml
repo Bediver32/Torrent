@@ -11,7 +11,7 @@ permissions:
 
 env:
   CGO_ENABLED: '0'
-  POTOK_VERSION: v0.1.6
+  POTOK_VERSION: v0.1.7
 
 concurrency:
   group: potok-release
@@ -83,4 +83,4 @@ jobs:
           fi
           gh release create "$POTOK_VERSION" dist/*.zip --target "$GITHUB_SHA" \
             --title "Поток ${POTOK_VERSION#v}" \
-            --notes "Список файлов с прогрессом раскрывается в очереди. В Windows Поток запускается в области уведомлений. Нажмите на значок Потока, чтобы открыть интерфейс."
+            --notes "Клиент восстанавливает очередь при запуске. Старые незавершённые загрузки ждут нажатия «Продолжить». Завершённые файлы отображаются в очереди без повторной загрузки."

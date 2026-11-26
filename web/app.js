@@ -65,7 +65,7 @@ async function request(path, options = {}) {
 }
 
 function matches(row, type) {
-  if (type === 'paused') return row.paused;
+  if (type === 'paused') return row.paused && !row.complete;
   if (type === 'complete') return row.complete;
   if (type === 'active') return !row.complete && !row.paused && row.status !== 'error' && row.status !== 'unselected';
   return true;
@@ -95,6 +95,7 @@ function updateRow(node, row) {
   toggle.dataset.value = resume ? 'resume' : 'pause';
   set('[data-action="toggle"]', resume ? 'Продолжить' : 'Пауза');
   const busy = pending.has(row.id) || !connected;
+  toggle.hidden = row.complete && row.status !== 'error';
   toggle.disabled = busy;
   const fileButton = node.querySelector('[data-action="files"]');
   fileButton.disabled = !row.files;
